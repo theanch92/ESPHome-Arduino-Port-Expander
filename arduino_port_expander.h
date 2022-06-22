@@ -6,9 +6,16 @@ logger:
   level: DEBUG
   esp8266_store_log_strings_in_flash: False
   */
+/*
+#include "esphome/core/component.h"
+#include "esphome/core/application.h"
+#include "esphome/components/i2c/i2c.h"
+using namespace i2c;
+*/
+
+#define APE_TEXT_SENSOR
 
 //#define APE_LOGGING
-
 // take advantage of LOG_ defines to decide which code to include
 #ifdef LOG_BINARY_OUTPUT
 #define APE_BINARY_OUTPUT
@@ -38,11 +45,14 @@ static const char *TAGape = "ape";
 #define CMD_SETUP_ANALOG_INTERNAL 0x10
 #define CMD_SETUP_ANALOG_DEFAULT 0x11
 
+#define CMD_READ_TEXT 42
+
 #define get_ape(constructor) static_cast<ArduinoPortExpander *>(constructor.get_component(0))
 
 #define ape_binary_output(ape, pin) get_ape(ape)->get_binary_output(pin)
 #define ape_binary_sensor(ape, pin) get_ape(ape)->get_binary_sensor(pin)
 #define ape_analog_input(ape, pin) get_ape(ape)->get_analog_input(pin)
+#define ape_text_input(ape, id, name) get_ape(ape)->get_text_input(id, name)
 
 class ArduinoPortExpander;
 
@@ -98,6 +108,21 @@ public:
 
 protected:
   uint8_t pin_;
+};
+#endif
+
+#ifdef APE_TEXT_SENSOR
+class ApeTextSensor : public text_sensor::TextSensor
+{
+public:
+  ApeTextSensor(ArduinoPortExpander *parent, uint8_t sensorId, const std::string name) : text_sensor::TextSensor(name)
+  {
+    this->sensorId_ = sensorId;
+  }
+  uint8_t get_sensorId() { return this->sensorId_; }
+
+protected:
+  uint8_t sensorId_;
 };
 #endif
 
@@ -246,6 +271,14 @@ public:
       pin->publish_state(analogRead(pinNo));
     }
 #endif
+#ifdef APE_TEXT_SENSOR
+    for (ApeTextSensor *ts : this->text_ids_)
+    {
+      uint8_t sensorId = ts->get_sensorId();
+      ts->publish_state(textRead(sensorId));
+    }
+#endif
+
     this->initial_state_ = false;
   }
 
@@ -260,6 +293,22 @@ public:
     return value;
   }
 #endif
+
+#ifdef APE_TEXT_SENSOR
+  std::string textRead(uint8_t id)
+  {
+    bool ok = (ERROR_OK == this->read_register((uint8_t)(CMD_READ_TEXT + id), const_cast<uint8_t *>(this->read_buffer_), 9));
+ #ifdef APE_LOGGING
+    //ESP_LOGVV(TAGape, "text read id: %d ok: %d byte0: %d byte1: %d", pin, ok, this->read_buffer_[0], this->read_buffer_[1]);
+ #endif
+    std::string result(reinterpret_cast<char const*>(&this->read_buffer_), sizeof(this->read_buffer_));
+    return result;
+  }
+#endif
+
+//String converter(uint8_t *str){
+//    return String((char *)str);
+//}
 
 #ifdef APE_BINARY_OUTPUT
   output::BinaryOutput *get_binary_output(uint8_t pin)
@@ -282,6 +331,14 @@ public:
   {
     ApeAnalogInput *input = new ApeAnalogInput(this, pin);
     analog_pins_.push_back(input);
+    return input;
+  }
+#endif
+#ifdef APE_TEXT_SENSOR
+  text_sensor::TextSensor *get_text_input(uint8_t id, const std::string name)
+  {
+    ApeTextSensor *input = new ApeTextSensor(this, id, name);
+    text_ids_.push_back(input);
     return input;
   }
 #endif
@@ -320,6 +377,9 @@ protected:
 #ifdef APE_SENSOR
   std::vector<ApeAnalogInput *> analog_pins_;
 #endif
+#ifdef APE_TEXT_SENSOR
+  std::vector<ApeTextSensor *> text_ids_;
+#endif 
 };
 
 #ifdef APE_BINARY_OUTPUT

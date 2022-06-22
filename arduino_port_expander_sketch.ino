@@ -11,17 +11,35 @@ Ports:
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <DHT.h>
 
 #define DEBUG // remove debug so pin 0 and 1 can be used for IO
-//#define DEBUG_READ // more advanced debuging
+#define DEBUG_READ // more advanced debuging
 
-#define I2C_ADDRESS 8 //i2c starts at pin 8
+#define I2C_ADDRESS 8  //i2c starts at pin 8
+
+int BASE_PIN = 3;
+int NUM_RELAYS = 8;
+
+#define DHT_PIN 11
+
+#define DHT_TYPE DHT22   // DHT 22  (AM2302), AM2321
+
+DHT dht(DHT_PIN, DHT_TYPE);
+
+
+unsigned long previousTemperatureMillis = 0;
+const long temperatureInterval = 60000;
+
 
 void onRequest();
 void onReceive(int);
 
 void setup()
 {
+  for(int i = BASE_PIN; i < BASE_PIN + NUM_RELAYS; i++) {
+    pinMode(i, OUTPUT); 
+  }
 #ifdef DEBUG
   Serial.begin(115200);
   Serial.println(F("Init "));
@@ -41,13 +59,54 @@ void setup()
 #ifdef DEBUG
   Serial.println(F("Wire ok"));
 #endif
+
+  dht.begin();
+#ifdef DEBUG
+  Serial.println(F("DHT ok"));
+#endif
 }
 
 void loop()
 {
   //int temp = analogRead(A1);
   //Serial.println(temp);
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousTemperatureMillis >= temperatureInterval) {
+    previousTemperatureMillis = currentMillis;
+    readDht22();
+  }
 }
+
+void printFloatTemplate(const char *pfx, float val, const char *sfx) 
+{
+  Serial.print(*pfx);
+  Serial.print(val);
+  Serial.println(*sfx);
+}
+
+float temp = 0;
+float humidity = 0;
+float heatIndex = 0;
+
+void readDht22() {
+  float f = dht.readTemperature(true);
+  float h = dht.readHumidity();
+  if (isnan(f) || isnan(h)) {
+    #ifdef DEBUG
+    Serial.println("Failed to read from DHT sensor!");
+    #endif
+    return;
+  }
+  temp = f;
+  humidity = h;
+  heatIndex = dht.computeHeatIndex(f, h);
+  #ifdef DEBUG
+  printFloatTemplate("Temperature", temp, "F");
+  printFloatTemplate("Humidity", humidity, "%");
+  printFloatTemplate("Heat Index", heatIndex, "F");
+  #endif
+}
+
 
 volatile byte buffer[9];
 volatile byte len = 1;
@@ -199,6 +258,38 @@ void readAnalog(int pin)
 #endif
 }
 
+void handleTextCommand(uint8_t id) {
+  // do the thing that was sent
+  // write the status to the buffer
+  
+  switch (id) {
+    case 1: // getTemp
+    {
+      String h = String(temp, 2);
+      h.getBytes((unsigned char*)(&buffer), 9);
+    }
+    break;
+    case 2: // getHumidity
+    {
+      String hu = String(humidity, 2);
+      hu.getBytes((unsigned char*)(buffer), 9);
+    }
+    break;
+    case 3: // getHeatIndex
+    {
+      String hi = String(heatIndex, 2);
+      hi.getBytes((unsigned char*)(&buffer), 9);
+    }
+    break;
+  }
+  
+  
+#ifdef DEBUG_TEXT
+  Serial.print(F("Handle Text Command "));
+  Serial.println(id);
+#endif
+}
+
 void onRequest()
 {
   Wire.write(const_cast<uint8_t *>(buffer), len);
@@ -223,6 +314,8 @@ void onRequest()
 #define CMD_SETUP_ANALOG_INTERNAL 0x10
 #define CMD_SETUP_ANALOG_DEFAULT 0x12
 
+#define CMD_READ_TEXT 42
+
 void onReceive(int numBytes)
 {
 #ifdef DEBUG_READ
@@ -236,6 +329,11 @@ void onReceive(int numBytes)
   case CMD_DIGITAL_READ:
     readDigital();
     break;
+  }
+  if (cmd >= CMD_READ_TEXT && cmd <= (CMD_READ_TEXT + 32)) // 32 is arbitrary limit
+  {
+    handleTextCommand(cmd - CMD_READ_TEXT );
+    return;
   }
 
   if (cmd >= CMD_ANALOG_READ_A0 && cmd <= CMD_ANALOG_READ_A14)
