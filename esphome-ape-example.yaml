@@ -1,0 +1,108 @@
+esphome:
+  name: esphome-ape-example
+  includes:
+  - arduino_port_expander.h
+esp8266:
+  board: esp01_1m
+
+# Enable logging
+logger:
+  level: DEBUG
+  hardware_uart: UART0_SWAP #enable swap to use rx/tx pins on esp01 with i2c module
+# Enable Home Assistant API
+api:
+
+ota:
+  password: "apassword"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esphome-Ape-Example"
+    password: "apassword"
+
+captive_portal:
+
+i2c:
+  id: i2c_mega
+  sda: 3
+  scl: 1
+custom_component:
+  - id: expander1
+    lambda: |-
+      auto ape_component = new ArduinoPortExpander(i2c_mega, 0x08);
+      return {ape_component};
+output:
+- platform: custom
+  type: binary
+  lambda: |-
+    return {ape_binary_output(expander1, 3),
+            ape_binary_output(expander1, 4),
+            ape_binary_output(expander1, 5),
+            ape_binary_output(expander1, 6),
+            ape_binary_output(expander1, 7),
+            ape_binary_output(expander1, 8),
+            ape_binary_output(expander1, 9),
+            ape_binary_output(expander1, 10)};
+  outputs:
+    - id: relay_1
+      inverted: false
+    - id: relay_2
+      inverted: false
+    - id: relay_3
+      inverted: false
+    - id: relay_4
+      inverted: false
+    - id: relay_5
+      inverted: false
+    - id: relay_6
+      inverted: false
+    - id: relay_7
+      inverted: false
+    - id: relay_8
+      inverted: false
+
+switch:
+  - platform: output
+    name: Main Pump
+    output: relay_1
+  - platform: output
+    name: Self Cleaner Pump
+    output: relay_2
+  - platform: output
+    name: Heater
+    output: relay_3
+  - platform: output
+    name: Chlorine Injector
+    output: relay_4
+  - platform: output
+    name: Spa Blower
+    output: relay_5
+
+light:
+  - platform: binary
+    name: Pool Lights
+    output: relay_6
+
+text_sensor:
+  - platform: custom
+    text_sensors:
+    - name: "Temperature"
+      id: pc_text_1
+      filters:
+      - append: "F"
+    - name: "Humidity"
+      id: pc_text_2
+      filters:
+      - append: "%"
+    - name: "Heat Index"
+      id: pc_text_3
+      filters:
+      - append: "F"
+    lambda: |-
+      return {ape_text_input(expander1, 1, "Temperature"),
+            ape_text_input(expander1, 2, "Humidity"),
+            ape_text_input(expander1, 3, "Heat Index")};
