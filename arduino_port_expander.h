@@ -6,16 +6,10 @@ logger:
   level: DEBUG
   esp8266_store_log_strings_in_flash: False
   */
-/*
-#include "esphome/core/component.h"
-#include "esphome/core/application.h"
-#include "esphome/components/i2c/i2c.h"
-using namespace i2c;
-*/
 
 #define APE_TEXT_SENSOR
-
 //#define APE_LOGGING
+
 // take advantage of LOG_ defines to decide which code to include
 #ifdef LOG_BINARY_OUTPUT
 #define APE_BINARY_OUTPUT
@@ -52,7 +46,7 @@ static const char *TAGape = "ape";
 #define ape_binary_output(ape, pin) get_ape(ape)->get_binary_output(pin)
 #define ape_binary_sensor(ape, pin) get_ape(ape)->get_binary_sensor(pin)
 #define ape_analog_input(ape, pin) get_ape(ape)->get_analog_input(pin)
-#define ape_text_input(ape, id, name) get_ape(ape)->get_text_input(id, name)
+#define ape_text_sensor(ape, id, name) get_ape(ape)->get_text_sensor(id, name)
 
 class ArduinoPortExpander;
 
@@ -274,9 +268,10 @@ public:
     }
 #endif
 #ifdef APE_TEXT_SENSOR
+// send a request for each text sensor to the arduino every x number of seconds
 if(previousMillis == 0 || (millis() - previousMillis >= updateInterval)) {
     previousMillis = millis();
-    for (ApeTextSensor *ts : this->text_ids_)
+    for (ApeTextSensor *ts : this->text_sensors_)
     {
       uint8_t sensorId = ts->get_sensorId();
 #ifdef APE_LOGGING
@@ -340,11 +335,11 @@ if(previousMillis == 0 || (millis() - previousMillis >= updateInterval)) {
   }
 #endif
 #ifdef APE_TEXT_SENSOR
-  text_sensor::TextSensor *get_text_input(uint8_t id, const std::string name)
+  text_sensor::TextSensor *get_text_sensor(uint8_t id, const std::string name)
   {
-    ApeTextSensor *input = new ApeTextSensor(this, id, name);
-    text_ids_.push_back(input);
-    return input;
+    ApeTextSensor *sensor = new ApeTextSensor(this, id, name);
+    text_sensors_.push_back(sensor);
+    return sensor;
   }
 #endif
   void write_state(uint8_t pin, bool state, bool setup = false)
@@ -383,7 +378,7 @@ protected:
   std::vector<ApeAnalogInput *> analog_pins_;
 #endif
 #ifdef APE_TEXT_SENSOR
-  std::vector<ApeTextSensor *> text_ids_;
+  std::vector<ApeTextSensor *> text_sensors_;
 #endif 
 };
 

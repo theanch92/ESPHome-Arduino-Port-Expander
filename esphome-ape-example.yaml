@@ -91,18 +91,18 @@ text_sensor:
   - platform: custom
     text_sensors:
     - name: "Temperature"
-      id: pc_text_1
+      id: text_1
       filters:
       - append: "F"
     - name: "Humidity"
-      id: pc_text_2
+      id: text_2
       filters:
       - append: "%"
     - name: "Heat Index"
-      id: pc_text_3
+      id: text_3
       filters:
       - append: "F"
     lambda: |-
-      return {ape_text_input(expander1, 1, "Temperature"),
-            ape_text_input(expander1, 2, "Humidity"),
-            ape_text_input(expander1, 3, "Heat Index")};
+      return {ape_text_sensor(expander1, 1, "Temperature"),
+            ape_text_sensor(expander1, 2, "Humidity"),
+            ape_text_sensor(expander1, 3, "Heat Index")};
