@@ -148,6 +148,8 @@ public:
         */
     this->configure_timeout_ = millis() + 5000;
   }
+  unsigned long previousMillis = 0;
+  unsigned long updateInterval = 60000;
   void loop() override
   {
     if (millis() < this->configure_timeout_)
@@ -272,11 +274,17 @@ public:
     }
 #endif
 #ifdef APE_TEXT_SENSOR
+if(previousMillis == 0 || (millis() - previousMillis >= updateInterval)) {
+    previousMillis = millis();
     for (ApeTextSensor *ts : this->text_ids_)
     {
       uint8_t sensorId = ts->get_sensorId();
+#ifdef APE_LOGGING
+      ESP_LOGD(TAGape, "Reading Text Sensor. %d", sensorId);
+#endif
       ts->publish_state(textRead(sensorId));
     }
+}
 #endif
 
     this->initial_state_ = false;
@@ -306,9 +314,6 @@ public:
   }
 #endif
 
-//String converter(uint8_t *str){
-//    return String((char *)str);
-//}
 
 #ifdef APE_BINARY_OUTPUT
   output::BinaryOutput *get_binary_output(uint8_t pin)

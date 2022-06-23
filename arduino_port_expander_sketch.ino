@@ -29,7 +29,7 @@ DHT dht(DHT_PIN, DHT_TYPE);
 
 
 unsigned long previousTemperatureMillis = 0;
-const long temperatureInterval = 60000;
+const long temperatureInterval = 5000;
 
 
 void onRequest();
@@ -71,7 +71,8 @@ void loop()
   //int temp = analogRead(A1);
   //Serial.println(temp);
   unsigned long currentMillis = millis();
-  if (currentMillis - previousTemperatureMillis >= temperatureInterval) {
+  if (previousTemperatureMillis == 0 || (currentMillis - previousTemperatureMillis >= temperatureInterval)) {
+    Serial.println("Logging temp");
     previousTemperatureMillis = currentMillis;
     readDht22();
   }
@@ -272,7 +273,7 @@ void handleTextCommand(uint8_t id) {
     case 2: // getHumidity
     {
       String hu = String(humidity, 2);
-      hu.getBytes((unsigned char*)(buffer), 9);
+      hu.getBytes((unsigned char*)(&buffer), 9);
     }
     break;
     case 3: // getHeatIndex
