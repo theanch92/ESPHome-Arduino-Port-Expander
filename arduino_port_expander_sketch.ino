@@ -11,12 +11,13 @@ Ports:
 
 #include <Arduino.h>
 #include <Wire.h>
+
 #include "EmonLib.h"  // Include Emon Library
 EnergyMonitor emon1;
 EnergyMonitor emon2;
 EnergyMonitor emon3;
 
-#define DEBUG       // remove debug so pin 0 and 1 can be used for IO
+//#define DEBUG  // remove debug so pin 0 and 1 can be used for IO
 //#define DEBUG_READ  // more advanced debuging
 
 #define I2C_ADDRESS 8  // i2c starts at pin 8
@@ -25,7 +26,7 @@ int BASE_PIN = 3;
 int NUM_RELAYS = 8;
 
 unsigned long previousTemperatureMillis = 0;
-const long temperatureInterval = 5000;
+const long readInterval = 5000;
 
 void onRequest();
 void onReceive(int);
@@ -67,7 +68,7 @@ void setup() {
 void loop() {
   unsigned long currentMillis = millis();
   if (previousTemperatureMillis == 0 ||
-      (currentMillis - previousTemperatureMillis >= temperatureInterval)) {    
+      (currentMillis - previousTemperatureMillis >= readInterval)) {
     previousTemperatureMillis = currentMillis;
     readPower();
   }
@@ -91,7 +92,7 @@ void readPower() {
   realPower1 = emon1.realPower;
   realPower2 = emon2.realPower;
   realPower3 = emon3.realPower;
-#ifdef DEBUG
+#ifdef DEBUG_READ
   printFloatTemplate("Power1", realPower1, "W");
   printFloatTemplate("Power2", realPower2, "W");
   printFloatTemplate("Power3", realPower3, "W");
@@ -264,13 +265,13 @@ void handleTextCommand(uint8_t id) {
     } break;
   }
 
-#ifdef DEBUG_TEXT
+#ifdef DEBUG
   Serial.print(F("Handle Text Command "));
   Serial.println(id);
 #endif
 }
 
-void onRequest() { Wire.write(const_cast<uint8_t *>(buffer), len);}
+void onRequest() { Wire.write(const_cast<uint8_t *>(buffer), len); }
 
 #define CMD_DIGITAL_READ 0x0
 
@@ -295,13 +296,12 @@ void onRequest() { Wire.write(const_cast<uint8_t *>(buffer), len);}
 
 void onReceive(int numBytes) {
 #ifdef DEBUG_READ
-  Serial.print("Received bytes: ");
+  Serial.print("Received num bytes: ");
   Serial.println(numBytes);
 #endif
   int cmd = Wire.read();
-
 #ifdef DEBUG_READ
-  Serial.print("Received bytes dato: ");
+  Serial.print("Received bytes data: ");
   Serial.println(cmd);
 #endif
 
