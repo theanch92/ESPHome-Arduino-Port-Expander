@@ -1,0 +1,120 @@
+esphome:
+  name: i2c
+  includes:
+      - arduino_port_expander.h
+
+esp8266:
+  board: nodemcuv2
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "iB/tk09Q5SJb8s6DPorPgGmniuA+npXYpXLVHu2NcFc="
+
+ota:
+  password: "dfb99ad33e8b1697f22319e6d2825f92"
+
+i2c:
+  id: i2c_component
+  scan: true
+  
+custom_component:
+  - id: expander1
+    lambda: |-
+      auto ape_component  = new ArduinoPortExpander(i2c_component, 0x08);
+      return {ape_component };
+      
+mqtt:
+  broker: 192.168.1.100
+
+# define binary outputs, here we have 4, as the relays are inverse logic
+# (a path to ground turns the relay ON), we defined the inverted: true
+# option of ESPHome outputs.
+output:
+- platform: custom
+  type: binary
+  lambda: |-
+    return {ape_binary_output(expander1, 3),
+            ape_binary_output(expander1, 4),
+            ape_binary_output(expander1, 5),
+            ape_binary_output(expander1, 6)};
+  outputs:
+    - id: relay_1
+      inverted: false
+    - id: relay_2
+      inverted: false
+    - id: relay_3
+      inverted: false
+    - id: relay_4
+      inverted: false
+
+
+switch:
+  - platform: output
+    name: Main Pump
+    output: relay_1
+  - platform: output
+    name: Self Cleaner Pump
+    output: relay_2
+  - platform: output
+    name: Heater
+    output: relay_3
+  - platform: output
+    name: Chlorine Injector
+    output: relay_4
+
+
+text_sensor:
+
+  - platform: custom
+    text_sensors:
+    - name: "Power1"
+      id: Power1
+ 
+    - name: "Power2"
+      id: Power2 
+
+      filters:
+      - append: " w"
+    - name: "Power3"
+
+      id: Power3
+      filters:
+      - append: " w"
+      
+    lambda: |-
+      return {ape_text_sensor(expander1, 1, "Power1 "),
+            ape_text_sensor(expander1, 2, "Power2 "),
+            ape_text_sensor(expander1, 3, "Power3 ")};
+
+
+sensor:
+  - platform: template
+    name: "Template Sensor"
+    id: aaa
+    unit_of_measurement: "w"
+    lambda: |-
+      return parse_number<float>(id(Power1).state);
+    
+    update_interval: 5s  
+      
+     
+    
+
+   
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Inverter Fallback Hotspot"
+    password: "cYa6UWTkMArd"
+
+captive_portal:
+
+web_server:
+  port: 80
