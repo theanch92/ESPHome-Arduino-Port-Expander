@@ -143,7 +143,7 @@ public:
     this->configure_timeout_ = millis() + 5000;
   }
   unsigned long previousMillis = 0;
-  unsigned long updateInterval = 60000;
+  unsigned long updateInterval = 5000;
   void loop() override
   {
     if (millis() < this->configure_timeout_)
